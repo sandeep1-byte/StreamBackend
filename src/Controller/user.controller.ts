@@ -8,8 +8,10 @@ import { log } from 'console';
 import nodemailer from 'nodemailer';
 configDotenv();
 
-const ok = process.env.successstatus;
-
+const ok:any = process.env.successstatus;
+const badrequest:any = process.env.badrequest; 
+const server:any = process.env.server;
+const unauthorized:any = process.env.unauthorized;
 export const SignUp = async (req: Request, res: Response, next: NextFunction) => {
     const { username, email, password, role } = req.body;
      console.log(req.body);
@@ -19,7 +21,7 @@ export const SignUp = async (req: Request, res: Response, next: NextFunction) =>
         // Check if user already exists
         const existingUser = await User.findOne({ email });
         if (existingUser) {
-            return res.status(400).json({ message: "User already exists", data: existingUser });
+            return res.status(badrequest).json({ message: "User already exists", data: existingUser });
         }
 
         // Create a new user
@@ -34,10 +36,10 @@ export const SignUp = async (req: Request, res: Response, next: NextFunction) =>
 
         // Generate JWT token if needed
         // const token = jwt.sign({ id: user._id }, process.env.SECRET_KEY!, { expiresIn: '7d' });
-        return res.status(200).json({ message: "User created successfully", user });
+        return res.status(ok).json({ message: "User created successfully", user });
     } catch (err) {
         console.error(err); // Log the error for debugging
-        return res.status(500).json({ message: "Error creating user" });
+        return res.status(server).json({ message: "Error creating user" });
     }
 };
 
@@ -53,7 +55,7 @@ console.log(password)
         console.log(user);
         
         if (!user) {
-            return res.status(401).json({ error: "Unauthorized user" });
+            return res.status(unauthorized).json({ error: "Unauthorized user" });
         }
 
         // Check if the password is valid
@@ -62,16 +64,16 @@ console.log(password)
         console.log(isPasswordValid);
         
         if (!isPasswordValid) {
-            return res.status(401).json({ error: "Invalid password" });
+            return res.status(unauthorized).json({ error: "Invalid password" });
         }
 
         // Generate a JWT token if needed
         // const token = jwt.sign({ id: user._id }, process.env.SECRET_KEY!, { expiresIn: '7d' });
 
-        return res.status(200).json({ message: "User signed in successfully", user });
+        return res.status(ok).json({ message: "User signed in successfully", user });
     } catch (err) {
         console.error(err); // Log the error for debugging
-        return res.status(500).json({ error: "Internal server error" });
+        return res.status(server).json({ error: "Internal server error" });
     }
 };
 
@@ -94,7 +96,7 @@ export const updatePassword = async (req: Request, res: Response, next: NextFunc
         console.log(isPasswordCorrect);
         
         if (!isPasswordCorrect) {
-            return res.status(401).json({ message: "Current password is incorrect" });
+            return res.status(unauthorized).json({ message: "Current password is incorrect" });
         }
 
         // Update the password
@@ -106,10 +108,10 @@ export const updatePassword = async (req: Request, res: Response, next: NextFunc
         
         console.log("Password updated successfully");
 
-        return res.status(200).json({ message: "Password updated successfully" });
+        return res.status(ok).json({ message: "Password updated successfully" });
     } catch (error) {
         console.error(error);
-        return res.status(500).json({ message: "Internal server error" });
+        return res.status(server).json({ message: "Internal server error" });
     }
 };
 
@@ -122,14 +124,14 @@ export const generateToken = async (req: Request, res: Response, next: NextFunct
         // Find the user by email
         const user = await User.findOne({ email });
         if (!user) {
-            return res.status(401).json({ error: "Unauthorized user" });
+            return res.status(unauthorized).json({ error: "Unauthorized user" });
         }
 
         // Verify the password asynchronously
         const isPasswordValid = await User.checkPassword(password, user.password);
 
         if (!isPasswordValid) {
-            return res.status(401).json({ error: "Invalid password" });
+            return res.status(unauthorized).json({ error: "Invalid password" });
         }
 
         // Create JWT token
@@ -138,10 +140,10 @@ export const generateToken = async (req: Request, res: Response, next: NextFunct
 
         console.log(`${email} ${token}`); // Optional: for debugging
 
-        return res.status(200).json({ message: "Token created successfully", token });
+        return res.status(ok).json({ message: "Token created successfully", token });
     } catch (err) {
         console.error(err); // Log the error for debugging
-        return res.status(500).json({ error: "Internal server error" });
+        return res.status(server).json({ error: "Internal server error" });
     }
 };
 
@@ -177,7 +179,7 @@ const sendOTP = (receiverMail: string): void => {
         if (error) {
             console.log('Error sending email:', error);
         } else {
-            console.log('Email sent successfully...', info);
+            console.log('otp sent successfully...', info);
         }
     });
 };
@@ -191,28 +193,29 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
          
         if (user) {
             sendOTP(req.body.email);
-            res.status(200).json({ message: 'User exists', detail: 'Email sent successfully' });
+            res.status(ok).json({ message: 'User exists', detail: 'Email sent successfully' });
         } else {
-            res.status(401).json({ message: 'Unauthorized request' });
+            res.status(unauthorized).json({ message: 'Unauthorized request' });
         }
     } catch (err) {
-        res.status(500).json({ error: 'Internal server error', err });
+        res.status(server).json({ error: 'Internal server error', err });
     }
 };
 
 // OTP Verification Function
-export const verifyOTP = (req: Request, res: Response, next: NextFunction): void => {
-    const otp: string = req.body.OTP;
-    if (otp === OTP) {
-        res.status(200).json({ message: 'OTP Verification Successful' });
+export const verifyOTP = (req: Request, res: Response, next: NextFunction)=>{
+    
+    const {otp} = req.body;
+    
+    if (OTP === otp) {
+        res.status(ok).json({ message: 'OTP Verification Successful' });
     } else {
-        res.status(401).json({ message: 'OTP Verification Failed' });
+        res.status(unauthorized).json({ message: 'OTP Verification Failed' });
     }
 };
 
 // Set New Password Function
 export const setNewPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
- 
     try {
         const result = await User.findOneAndUpdate(
             { email: req.body.email }, // Query condition
@@ -221,11 +224,11 @@ export const setNewPassword = async (req: Request, res: Response, next: NextFunc
         );
 
         if (result) {
-            res.status(200).json({ message: 'Password updated successfully' });
+            res.status(ok).json({ message: 'Password updated successfully' });
         } else {
-            res.status(401).json({ message: 'Unauthorized request' });
+            res.status(unauthorized).json({ message: 'Unauthorized request' });
         }
     } catch (err) {
-        res.status(500).json({ error: 'Internal server error', err });
+        res.status(server).json({ error: 'Internal server error', err });
     }
 };
